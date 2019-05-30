@@ -1,3 +1,22 @@
+<?php 
+//Para que funcione en editar e ingresar 
+//hay que inicializar las variables
+$nombre="";
+$telefono="";
+$direccion="";
+$correo="";
+$total="";
+
+if (isset($encabezado)) {
+    foreach ($encabezado as $fila ) {
+        $nombre=$fila["nombre"];
+        $telefono=$fila["telefono"];
+        $direccion=$fila["direccion"];
+        $correo=$fila["correo"];
+        $total=$fila["total"];
+    }
+}
+?>
 <!doctype html>
 <html class="no-js" lang="en">
 
@@ -25,7 +44,7 @@
             <div class="container-fluid">
                 <div class="row">
                     <div class="col-lg-3 col-xs-6">
-                        <span id="mensaje_carrito" class="btn btn-info">El pedido va en:</span>
+                        <span id="mensaje_carrito" class="btn btn-info">El pedido va en:<?php echo $total; ?></span>
                     </div>
                 </div>
             </div>
@@ -53,7 +72,25 @@
                                                 <?php
                                                     $i=0;
                                                     foreach ($listarproductos as $fila) {
-                                                    $i++;                                             
+                                                    $i++;                                
+                                                    $cantidad="";
+                                                    $impuesto=$fila["iva"];
+                                                    $precio=$fila["precio"];
+                                                    $subtotal="";
+
+                                                    if(isset($detallepedido))
+                                                    {
+                                                        foreach ($detallepedido as $fila1 ) {
+                                                            if($fila["ref"]==$fila1["ref"])
+                                                            {
+                                                                $cantidad=$fila1["cantidad"];
+                                                                $impuesto=$fila1["impuestos"];
+                                                                $precio=$fila1["precio"];
+                                                                $subtotal=$fila1["subtotal"];
+                                                                break; //salimos del foreach $fila1
+                                                            }
+                                                        }
+                                                    }
                                                 ?>
                                                 <tr>
                                                     <td>
@@ -69,7 +106,7 @@
                                                         <p><?php echo $fila["nombre"] ?></p>
                                                     </td>
                                                     <td>
-                                                        <input type="number" class="form-control" name="cant_<?php echo $i;  ?>" id="cant_<?php echo $i; ?>" maxlength="4" style="width: 60px" onblur="calcular('<?php echo $i ?>');">
+                                                        <input type="number" class="form-control" name="cant_<?php echo $i;  ?>" id="cant_<?php echo $i; ?>" maxlength="4" style="width: 60px" onblur="calcular('<?php echo $i ?>');" value="<?php echo $cantidad ?>">
                                                     </td>
                                                     <td>
                                                         <input type="number" class="form-control"  name="valor_<?php echo $i;  ?>" id="valor_<?php echo $i; ?>" value="<?php echo $fila["precio"] ?>" maxlength="10"
@@ -79,7 +116,7 @@
                                                         <input type="number" class="form-control"  name="impuesto_<?php echo $i;  ?>" id="impuesto_<?php echo $i; ?>" value="<?php echo $fila["iva"] ?>" maxlength="2" style="width: 60px" onblur="calcular('<?php echo $i ?>');">
                                                     </td>
                                                     <td>
-                                                        <input type="number" class="form-control"  name="subtotal_<?php echo $i;  ?>" id="subtotal_<?php echo $i; ?>" readonly style="width: 200px; color: #000!important">
+                                                        <input type="number" class="form-control"  name="subtotal_<?php echo $i;  ?>" id="subtotal_<?php echo $i; ?>" value="<?php echo $subtotal ?>" readonly style="width: 200px; color: #000!important">
                                                     </td>                                                    
                                                     <td>
                                                         <button onclick="agregar('<?php echo $i; ?>',1)" type="button" 
@@ -126,7 +163,7 @@
                                                             </td>
                                                             <td>
                                                                 <input class="form-control" type="text" name="nombre" id="nombre"
-                                                                placeholder="Digite el nombre" maxlength="50" required >
+                                                                placeholder="Digite el nombre" maxlength="50" required value="<?php echo $nombre ?>" >
                                                             </td>
                                                             <td>
                                                                 <input class="form-control" type="text" name="comercial" id="comercial"
@@ -136,20 +173,21 @@
                                                         <tr>    
                                                             <td>
                                                                 <input class="form-control" type="email" name="correo" id="correo"
-                                                                placeholder="Digite el correo" maxlength="50" required" >
+                                                                placeholder="Digite el correo" maxlength="50" required value="<?php echo $correo ?>">
                                                             </td>
                                                             <td>
                                                                 <input class="form-control" type="number" name="telefono" id="telefono"
-                                                                placeholder="Digite el telefono" maxlength="50" required" >
+                                                                placeholder="Digite el telefono" maxlength="50" required value="<?php echo $telefono ?>">
                                                             </td>
                                                             <td>
                                                                 <input class="form-control" type="text" name="direccion" id="direccion"
-                                                                placeholder="Digite la direccion" maxlength="255" required" >
+                                                                placeholder="Digite la direccion" maxlength="255" required value="<?php echo $direccion ?>">
                                                             </td>
                                                         </tr>
                                                         <tr>
                                                             <td colspan="3">
                                                                 <button class="btn btn-info" name="enviar" id="enviar">GENERAR PEDIDO</button>
+                                                                <span id="mensaje_realizar"></span>
                                                             </td>
                                                         </tr>
                                                 </tbody>
@@ -305,6 +343,7 @@
                 $("#comercial").val(data[0].comercial);
                 $("#telefono").val(data[0].telefono);
                 $("#direccion").val(data[0].direccion);
+                $("#correo").val(data[0].correo);
                 $("#nit").val(data[0].nit);
             },
             error : function(jqXHR,textStatus,errorThrown) {
@@ -313,4 +352,45 @@
             }
         });     
     }
+
+    //proceso de guardado del encabezado del pedido
+    $("#formapedidos").submit(function(evento){
+        //adicional --Bloquear el envio de datos hasta que el ajax responda
+        evento.preventDefault();
+        //capturar la ruta del formulario para indicarlo a donde enviarlo
+        var ruta = $("#formapedidos").attr("action");
+        //replace que cambie el agregar por finalizar
+        ruta=ruta.replace("agregar","finalizar");
+        //envio todo el formulario como parametros
+        parametros=$("#formapedidos").serialize();
+
+        $.ajax({
+            data : parametros,
+            type : "POST",
+            url : ruta,
+            beforesend : function() {                
+                $("#mensaje_realizar").show();
+                $("#mensaje_realizar").html("<span class='btn btn-warning'>Procesando...</span>");
+            },
+            success : function(response) {
+                $("#mensaje_realizar").hide();
+                //Si response es 0 que lo mande al listado principal de pedidos
+                //para eso utilizaremos de nuevo replace para quitar la palabra finalizar
+                //y que solo quede pedidos
+                if(response==0)
+                {
+                    ruta=ruta.replace("finalizar","");
+                    $(location).attr("href",ruta);
+                }else{
+                    $("#mensaje_realizar").html("<span class='btn btn-success'>"+response+"</span>")
+                    $("#mensaje_realizar").fadeOut(3000);
+                }
+            },
+            error : function(jqXHR,textStatus,errorThrown) {
+                $("#mensaje_realizar").html("<span class='btn btn-warning'>Error al procesar:"+textStatus+","+errorThrown+"</span>");
+                    $("#mensaje_realizar").show();
+            }
+        });
+
+    })
 </script>
